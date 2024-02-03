@@ -3,6 +3,7 @@ let books = require("./booksdb.js");
 let isValid = require("./auth_users.js").isValid;
 let users = require("./auth_users.js").users;
 const public_users = express.Router();
+const Axios = require('axios');
 
 
 public_users.post("/register", (req,res) => {
@@ -27,13 +28,25 @@ public_users.post("/register", (req,res) => {
 
 
 // Get the book list available in the shop
+
+/*
 public_users.get('/books',function (req, res) {
   res.send(JSON.stringify(books,null,4));
+}); */
+
+function getBooks() {
+  return new Promise((resolve, reject) => {
+      resolve(books);
+  });
+}
+
+// Get the book list available in the shop
+public_users.get('/books', function (req, res) {
+  getBooks().then((books) => res.send(JSON.stringify(books,null,4)));
 });
 
 
-
-public_users.get('/isbn/:isbn', async function (req, res) {
+/*public_users.get('/isbn/:isbn', async function (req, res) {
   try {
     // Retrieve the ISBN from the request parameters
     const isbn = req.params.isbn;
@@ -59,12 +72,39 @@ public_users.get('/isbn/:isbn', async function (req, res) {
     res.status(statusCode).json({ message: error.message });
   }
 });
+*/
+const getBookByISBN = (isbn) => {
+  return new Promise((resolve, reject) => {
+    // Convert the ISBN to a number to match the numeric keys in the books object
+    const numericISBN = parseInt(isbn);
 
+    //const booksData = require('./booksdb');
 
+    // Check if the numericISBN exists in the booksData object
+    if (books[numericISBN]) {
+      resolve(books[numericISBN]);
+    } else {
+      reject(new Error('Book not found'));
+    }
+  });
+};
+
+public_users.get('/isbn/:isbn', (req, res) => {
+  const { isbn } = req.params;
+
+  getBookByISBN(isbn)
+    .then((book) => {
+      res.json(book);
+    })
+    .catch((error) => {
+      console.error('Error fetching book details:', error.message);
+      res.status(404).json({ error: 'Book not found' });
+    });
+});
 
   
 // Get book details based on author
-public_users.get('/author/:author', function (req, res) {
+/*public_users.get('/author/:author', function (req, res) {
     const authorParam = req.params.author;
     const bookKeys = Object.keys(books);
 
@@ -82,12 +122,41 @@ public_users.get('/author/:author', function (req, res) {
     } else {
         res.json(matchingBooks);
     }
+});*/
+
+const getBookByAuthor = (author) => {
+  return new Promise((resolve, reject) => {
+    // Decode the URL-encoded author parameter
+    const decodedAuthor = decodeURIComponent(author);
+
+    // Find the first book with the given decoded author in the booksData object
+    const book = Object.values(books).find(book => book.author === decodedAuthor);
+
+    if (book) {
+      resolve(book);
+    } else {
+      reject(new Error('Book not found for the given author'));
+    }
+  });
+};
+
+public_users.get('/author/:author', (req, res) => {
+  const { author } = req.params;
+
+  getBookByAuthor(author)
+    .then((book) => {
+      res.json(book);
+    })
+    .catch((error) => {
+      console.error('Error fetching book details by author:', error.message);
+      res.status(404).json({ error: 'Book not found for the given author' });
+    });
 });
 
 
 
 // Get all books based on title
-public_users.get('/title/:title', function (req, res) {
+/*public_users.get('/title/:title', function (req, res) {
   const titleParam = req.params.title;
   const bookKeys = Object.keys(books);
 
@@ -105,6 +174,32 @@ public_users.get('/title/:title', function (req, res) {
   } else {
       res.json(matchingBooks);
   }
+});*/
+
+const getBookByTitle = (title) => {
+  return new Promise((resolve, reject) => {
+    // Find the first book with the given title in the booksData object
+    const book = Object.values(books).find(book => book.title === title);
+
+    if (book) {
+      resolve(book);
+    } else {
+      reject(new Error('Book not found for the given title'));
+    }
+  });
+};
+
+public_users.get('/title/:title', (req, res) => {
+  const { title } = req.params;
+
+  getBookByTitle(title)
+    .then((book) => {
+      res.json(book);
+    })
+    .catch((error) => {
+      console.error('Error fetching book details by title:', error.message);
+      res.status(404).json({ error: 'Book not found for the given title' });
+    });
 });
 
 
